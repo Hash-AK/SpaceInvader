@@ -1,4 +1,4 @@
-module github.com/hash-ak/AsteGoid
+module github.com/hash-ak/SpaceInvader
 
 go 1.25.4
 
