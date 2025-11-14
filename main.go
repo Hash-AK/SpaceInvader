@@ -148,6 +148,15 @@ Loop:
 					screen.SetContent(bullets[i].X, bullets[i].Y, '|', nil, bulletStyle)
 					activeBullets = append(activeBullets, bullets[i])
 				}
+				for r := range aliens {
+					for c := range aliens[r] {
+						if bullets[i].X == aliens[r][c].X && bullets[i].Y == aliens[r][c].Y && bullets[i].isActive && aliens[r][c].isAlive {
+							aliens[r][c].isAlive = false
+							bullets[i].isActive = false
+							return
+						}
+					}
+				}
 			}
 			for r := range aliens {
 				for c := range aliens[r] {
