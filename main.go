@@ -8,10 +8,9 @@ import (
 )
 
 type Alien struct {
-	X     int
-	Y     int
-	Speed int
-	Size  int
+	X       int
+	Y       int
+	isAlive bool
 }
 type Player struct {
 	X int
@@ -27,7 +26,7 @@ var playerRune rune
 
 func main() {
 	bulletStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorYellow)
-
+	alienStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorRed)
 	screen, err := tcell.NewScreen()
 
 	if err != nil {
@@ -42,6 +41,26 @@ func main() {
 		Y: termHeight - 1,
 	}
 	var bullets []Bullet
+	var aliens [][]Alien
+	const aliensRow = 5
+	const alienCol = 10
+	for r := 0; r < aliensRow; r++ {
+		var row []Alien
+		for c := 0; c < alienCol; c++ {
+			newAllien := Alien{
+				X:       c * 3,
+				Y:       r + 1,
+				isAlive: true,
+			}
+			row = append(row, newAllien)
+
+		}
+		aliens = append(aliens, row)
+	}
+	alienDirection := 1
+	alienMoveTimer := 0
+	alienSpeedFactor := 1
+	alienSpeed := 20
 	eventChan := make(chan tcell.Event)
 	quitChan := make(chan struct{})
 	go func() {
@@ -82,8 +101,45 @@ Loop:
 				termWidth, termHeight = screen.Size()
 			}
 		case <-ticker.C:
+			alienMoveTimer = alienMoveTimer + 1
+			alienSpeedFactor = alienSpeedFactor + 1
+			if (alienSpeedFactor % 50) == 0 {
+				alienSpeed = alienSpeed - 1
+			}
+			if alienMoveTimer >= alienSpeed {
+				alienMoveTimer = 0
+				hitEdge := false
+				for r := range aliens {
+					for c := range aliens[r] {
+						if aliens[r][c].isAlive {
+							if (aliens[r][c].X >= termWidth-1 && alienDirection == 1) || (aliens[r][c].X <= 0 && alienDirection == -1) {
+								hitEdge = true
+								break
+							}
+						}
+					}
+					if hitEdge {
+						break
+					}
+				}
+				if hitEdge {
+					alienDirection *= -1
+					for r := range aliens {
+						for c := range aliens[r] {
+							aliens[r][c].Y = aliens[r][c].Y + 1
+						}
+					}
+				} else {
+					for r := range aliens {
+						for c := range aliens[r] {
+							aliens[r][c].X = aliens[r][c].X + alienDirection
+						}
+					}
+				}
+			}
 			player.Y = termHeight - 1
 			playerRune = '^'
+			alienRune := 'W'
 			screen.Clear()
 			var activeBullets []Bullet
 			for i := range bullets {
@@ -91,6 +147,14 @@ Loop:
 				if bullets[i].Y > 0 {
 					screen.SetContent(bullets[i].X, bullets[i].Y, '|', nil, bulletStyle)
 					activeBullets = append(activeBullets, bullets[i])
+				}
+			}
+			for r := range aliens {
+				for c := range aliens[r] {
+					if aliens[r][c].isAlive {
+						screen.SetContent(aliens[r][c].X, aliens[r][c].Y, alienRune, nil, alienStyle)
+
+					}
 				}
 			}
 			bullets = activeBullets
