@@ -145,19 +145,30 @@ Loop:
 			for i := range bullets {
 				bullets[i].Y--
 				if bullets[i].Y > 0 {
-					screen.SetContent(bullets[i].X, bullets[i].Y, '|', nil, bulletStyle)
-					activeBullets = append(activeBullets, bullets[i])
-				}
-				for r := range aliens {
-					for c := range aliens[r] {
-						if bullets[i].X == aliens[r][c].X && bullets[i].Y == aliens[r][c].Y && bullets[i].isActive && aliens[r][c].isAlive {
-							aliens[r][c].isAlive = false
-							bullets[i].isActive = false
-							return
+					bullets[i].isActive = true
+
+					// Check collision first
+					hitAlien := false
+					for r := range aliens {
+						for c := range aliens[r] {
+							if bullets[i].X == aliens[r][c].X && bullets[i].Y == aliens[r][c].Y && aliens[r][c].isAlive {
+								aliens[r][c].isAlive = false
+								hitAlien = true
+								break
+							}
 						}
+						if hitAlien {
+							break
+						}
+					}
+
+					// Only add to activeBullets if it didn't hit
+					if !hitAlien {
+						activeBullets = append(activeBullets, bullets[i])
 					}
 				}
 			}
+			bullets = activeBullets
 			for r := range aliens {
 				for c := range aliens[r] {
 					if aliens[r][c].isAlive {
@@ -166,8 +177,11 @@ Loop:
 					}
 				}
 			}
-			bullets = activeBullets
 			screen.SetContent(player.X, player.Y, playerRune, nil, tcell.StyleDefault.Foreground(tcell.ColorGreen))
+			for _, b := range bullets {
+				screen.SetContent(b.X, b.Y, '|', nil, bulletStyle)
+
+			}
 			screen.Show()
 
 		case <-quitChan:
