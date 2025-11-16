@@ -27,6 +27,7 @@ type Bullet struct {
 var playerRune rune
 
 func main() {
+	var gameState string
 	bulletStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorYellow)
 	alienStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorRed)
 	screen, err := tcell.NewScreen()
@@ -42,6 +43,8 @@ func main() {
 		X: termWidth / 2,
 		Y: termHeight - 1,
 	}
+	lives := 3
+	gameState = "playing"
 	var bullets []Bullet
 	var aliens [][]Alien
 	var alienBullets []Bullet
@@ -82,30 +85,39 @@ Loop:
 	for {
 		select {
 		case event := <-eventChan:
-			switch ev := event.(type) {
-			case *tcell.EventKey:
-				if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
-					close(quitChan)
-				}
-				if ev.Key() == tcell.KeyLeft && player.X > 0 {
-					player.X = player.X - 1
-				}
-				if ev.Key() == tcell.KeyRight && player.X < termWidth-1 {
-					player.X = player.X + 1
-				}
-				if ev.Key() == tcell.KeyRune {
-					if ev.Rune() == ' ' {
-						newBullet := Bullet{
-							X:        player.X,
-							Y:        player.Y - 1,
-							isActive: true,
+			if gameState == "playing" {
+				switch ev := event.(type) {
+				case *tcell.EventKey:
+					if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
+						close(quitChan)
+					}
+					if ev.Key() == tcell.KeyLeft && player.X > 0 {
+						player.X = player.X - 1
+					}
+					if ev.Key() == tcell.KeyRight && player.X < termWidth-1 {
+						player.X = player.X + 1
+					}
+					if ev.Key() == tcell.KeyRune {
+						if ev.Rune() == ' ' {
+							newBullet := Bullet{
+								X:        player.X,
+								Y:        player.Y - 1,
+								isActive: true,
+							}
+							bullets = append(bullets, newBullet)
 						}
-						bullets = append(bullets, newBullet)
+					}
+				case *tcell.EventResize:
+					screen.Sync()
+					termWidth, termHeight = screen.Size()
+				}
+			} else {
+				switch ev := event.(type) {
+				case *tcell.EventKey:
+					if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
+						close(quitChan)
 					}
 				}
-			case *tcell.EventResize:
-				screen.Sync()
-				termWidth, termHeight = screen.Size()
 			}
 		case <-ticker.C:
 			alienMoveTimer = alienMoveTimer + 1
@@ -150,6 +162,7 @@ Loop:
 					for r := aliensRow - 1; r >= 0; r-- {
 						if aliens[r][c].isAlive {
 							shooters = append(shooters, aliens[r][c])
+							break
 						}
 					}
 				}
@@ -189,7 +202,7 @@ Loop:
 						}
 					}
 
-					if !hitAlien {
+					if !hitAlien && bullets[i].Y > 0 {
 						activeBullets = append(activeBullets, bullets[i])
 					}
 				}
@@ -198,18 +211,17 @@ Loop:
 
 			for i := range alienBullets {
 				alienBullets[i].Y++
+				hitPlayer := false
 				if alienBullets[i].Y < termHeight {
-					alienBullets[i].isActive = true
-					hitPlayer := false
 					if alienBullets[i].isActive && alienBullets[i].X == player.X && alienBullets[i].Y == player.Y {
+						lives--
 						hitPlayer = true
-						break
+						if lives <= 0 {
+							gameState = "lost"
+						}
 					}
 
-					if hitPlayer {
-						break
-					}
-					if !hitPlayer {
+					if !hitPlayer && alienBullets[i].Y < termHeight {
 						activeAlienBullets = append(activeAlienBullets, alienBullets[i])
 					}
 				}
