@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
+	"os"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -42,6 +44,8 @@ func main() {
 	}
 	var bullets []Bullet
 	var aliens [][]Alien
+	var alienBullets []Bullet
+
 	const aliensRow = 5
 	const alienCol = 10
 	for r := 0; r < aliensRow; r++ {
@@ -60,6 +64,9 @@ func main() {
 	alienDirection := 1
 	alienMoveTimer := 0
 	alienSpeedFactor := 1
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	const alienShootProb = 5
+
 	alienSpeed := 20
 	eventChan := make(chan tcell.Event)
 	quitChan := make(chan struct{})
@@ -137,11 +144,31 @@ Loop:
 					}
 				}
 			}
+			if rand.Intn(100) < alienShootProb {
+				var shooters []Alien
+				for c := 0; c < alienCol; c++ {
+					for r := aliensRow - 1; r >= 0; r-- {
+						if aliens[r][c].isAlive {
+							shooters = append(shooters, aliens[r][c])
+						}
+					}
+				}
+				if len(shooters) > 0 {
+					shooter := shooters[rand.Intn(len(shooters))]
+					newBullet := Bullet{
+						X:        shooter.X,
+						Y:        shooter.Y + 1,
+						isActive: true,
+					}
+					alienBullets = append(alienBullets, newBullet)
+				}
+			}
 			player.Y = termHeight - 1
 			playerRune = '^'
 			alienRune := 'W'
 			screen.Clear()
 			var activeBullets []Bullet
+			var activeAlienBullets []Bullet
 			for i := range bullets {
 				bullets[i].Y--
 				if bullets[i].Y > 0 {
@@ -162,13 +189,33 @@ Loop:
 						}
 					}
 
-					// Only add to activeBullets if it didn't hit
 					if !hitAlien {
 						activeBullets = append(activeBullets, bullets[i])
 					}
 				}
 			}
 			bullets = activeBullets
+
+			for i := range alienBullets {
+				alienBullets[i].Y++
+				if alienBullets[i].Y < termHeight {
+					alienBullets[i].isActive = true
+					hitPlayer := false
+					if alienBullets[i].isActive && alienBullets[i].X == player.X && alienBullets[i].Y == player.Y {
+						hitPlayer = true
+						break
+					}
+
+					if hitPlayer {
+						break
+					}
+					if !hitPlayer {
+						activeAlienBullets = append(activeAlienBullets, alienBullets[i])
+					}
+				}
+
+			}
+			alienBullets = activeAlienBullets
 			for r := range aliens {
 				for c := range aliens[r] {
 					if aliens[r][c].isAlive {
@@ -182,6 +229,19 @@ Loop:
 				screen.SetContent(b.X, b.Y, '|', nil, bulletStyle)
 
 			}
+			for _, b := range alienBullets {
+				screen.SetContent(b.X, b.Y, '|', nil, bulletStyle)
+			}
+			for r := range aliens {
+				for c := range aliens[r] {
+					if aliens[r][c].isAlive {
+						if aliens[r][c].Y <= 0 {
+							os.Exit(1)
+						}
+					}
+				}
+			}
+
 			screen.Show()
 
 		case <-quitChan:
