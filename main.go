@@ -26,7 +26,47 @@ type Bullet struct {
 
 var playerRune rune
 
+func printString(screen tcell.Screen, x int, y int, style tcell.Style, toPrint string) {
+	for _, r := range toPrint {
+		screen.SetContent(x, y, r, nil, style)
+		x++
+	}
+}
+
+var score int
+
+func checkAlienDeaths(aliens [][]Alien) (bool, int) {
+	totalAliens := 0
+	var cols int
+	won := false
+	var totalAliveAliens int
+
+	for r := range aliens {
+		for c := range aliens[r] {
+			cols = aliens[r][c].X
+			cols++
+			totalAliens = totalAliens + 1
+
+		}
+	}
+	if totalAliens > 0 {
+		totalAliveAliens = totalAliens
+		for r := range aliens {
+			for c := range aliens[r] {
+				if !aliens[r][c].isAlive {
+					totalAliveAliens = totalAliveAliens - 1
+				}
+			}
+		}
+		if totalAliveAliens == 0 {
+			won = true
+		}
+	}
+	return won, totalAliveAliens
+
+}
 func main() {
+	score = 0
 	var gameState string
 	bulletStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorYellow)
 	alienStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorRed)
@@ -194,6 +234,7 @@ Loop:
 							if bullets[i].X == aliens[r][c].X && bullets[i].Y == aliens[r][c].Y && aliens[r][c].isAlive {
 								aliens[r][c].isAlive = false
 								hitAlien = true
+								score = score + 10
 								break
 							}
 						}
@@ -254,6 +295,26 @@ Loop:
 				}
 			}
 
+			livesText := fmt.Sprintf("Lives : %d", lives)
+			scoreText := fmt.Sprintf("Score : %d", score)
+			printString(screen, 1, 0, tcell.StyleDefault, livesText)
+			printString(screen, 2+len(livesText), 0, tcell.StyleDefault.Foreground(tcell.ColorGreen), scoreText)
+			won, _ := checkAlienDeaths(aliens)
+			if won {
+				gameState = "won"
+			}
+
+			if gameState == "lost" {
+				message := "GAME OVER"
+				messageX := (termWidth / 2) - len(message)
+				messageY := termHeight / 2
+				printString(screen, messageX, messageY, alienStyle.Bold(true), message)
+			} else if gameState == "won" {
+				message := "YOU WIN!"
+				messageX := (termWidth / 2) - len(message)
+				messageY := termHeight / 2
+				printString(screen, messageX, messageY, tcell.StyleDefault.Foreground(tcell.ColorGreen).Bold(true), message)
+			}
 			screen.Show()
 
 		case <-quitChan:
