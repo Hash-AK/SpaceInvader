@@ -5,5 +5,7 @@ To run it locally, git cloen this repo, cd into the folder then run :
 go run .
 ```
 
-## Controls
+
+
+# Controls
 Arrow keys to move on the side, space to shoot bullets
